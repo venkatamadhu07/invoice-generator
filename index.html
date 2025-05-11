@@ -1,13 +1,56 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Invoice Generator - Nani Enterprises</title>
-    <link rel="icon" href="/images/logo.png" />
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-  </body>
-</html>
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
+public class SimpleWebServer {
+
+    public static void main(String[] args) throws IOException {
+        int port = 8080;
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+
+        // Serve the root HTML
+        server.createContext("/", new FileHandler("index.html", "text/html"));
+
+        // Serve the favicon or image
+        server.createContext("/images/logo.png", new FileHandler("images/logo.png", "image/png"));
+
+        System.out.println("Server started at http://localhost:" + port);
+        server.setExecutor(null);
+        server.start();
+    }
+
+    static class FileHandler implements HttpHandler {
+        private final String filePath;
+        private final String contentType;
+
+        public FileHandler(String filePath, String contentType) {
+            this.filePath = filePath;
+            this.contentType = contentType;
+        }
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            File file = new File(filePath);
+            if (!file.exists()) {
+                String error = "404 (Not Found)\n";
+                exchange.sendResponseHeaders(404, error.length());
+                OutputStream os = exchange.getResponseBody();
+                os.write(error.getBytes());
+                os.close();
+                return;
+            }
+
+            byte[] fileBytes = Files.readAllBytes(Paths.get(filePath));
+            exchange.getResponseHeaders().add("Content-Type", contentType);
+            exchange.sendResponseHeaders(200, fileBytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(fileBytes);
+            os.close();
+        }
+    }
+}
